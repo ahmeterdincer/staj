@@ -1,0 +1,16 @@
+
+--> Mevcut RGB kamera sistemi sadece duman ve ateşi algılayabildiği ve ısıyı algılayamadığı için termal kamera kullanmamız gerekecektir. Proje içerisinde ikisininde değerlendirmeye katıldığı bir sistem kurgulanacak.
+
+--> kameralardan görüntü alınıp modelin istediği biçim ve boyutta modele girdi olarak verilecektir sonrasında görüntüler işlenip çıktı olarak (örneğin yüzde 63 duman var yüzde 70 ateş var gibi) gelir ve termal kameradan alınan ısı sonuçlarına göre bir doğrulama aşamasına girer eğer tehlikeli bir durum varsa otomasyon sistemine çağrı gönderilir ve otomasyon devreye girer. Anlık durum takibi için bir panel oluşturulacaktır.
+
+--> Model olarak YOLO11 ve YOLOv8  kullanılabilir. Eğer biraz daha yavaş ama daha yüksek doğruluk istiyorsak RT-DETR  modellerini kullanabiliriz.
+
+--> Yanlış alarm durumlarından kaçınabilmek için termal kameralardan faydalanacağız. cihazların stabil çalışabildiği maksimum sıcaklığı ve standart sapmalarını hesaplayarak bir karar mekanizması oluşturulacak. Eğer tamamen otonom bir sistem yapmayacak isek yani insan kontrolü de işin içeriisnde olacaksa biraz daha küçük ölçekli diyebileceğimiz riskleri otonom sistemlere göndermeden sistemden sorumlu operatöre bildirim gönderebilriz ve kararı ona bırakabiliriz.
+
+--> bu bilgiler lazım oalcaktır :Yazılım sunucuda mı bulutta mı çalışacak, GPU gerekir mi, kaç kamera taşır?
+
+--> Tüm Kameralar için bağlantılı olan veya aynı cihazları gözleyen kameralar ortak değerlendirmeye tabii tutulacaktır. Ortak sistemler için tek bir alarm sistemi olacak fakat operator her bir kamera verilerini inceleyebilecektir. operatörün göreceği sistem söyle olacaktır: Bağlantılı cihazlar için ortak sonuçları görecektir eğer isterse herbir kameranın verisine erişimi mümkün olacaktır. ayrı cihazları inceleyen kameralar için de geçerlidir bu saydıklarım basit bir kullanıcı arayüzü olacaktır.
+
+
+
+

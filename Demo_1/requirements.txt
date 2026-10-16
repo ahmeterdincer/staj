@@ -1,0 +1,9 @@
+# Colab'da torch/torchvision zaten kurulu gelir; yerelde GPU için torch'u
+# https://pytorch.org adresindeki komutla ayrıca kurun.
+ultralytics>=8.3.0      # YOLO11, YOLOv8, RT-DETR (YOLO11 için en az 8.3.0)
+albumentations>=2.0.0   # çevrimdışı augmentation (2.x API'si kullanılıyor)
+kagglehub>=0.3.0        # veri setini Kaggle'dan indirme
+gradio>=4.44.0          # web demosu
+matplotlib
+pandas
+pyyaml

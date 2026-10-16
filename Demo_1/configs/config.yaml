@@ -1,0 +1,94 @@
+# =============================================================================
+# Yangın & Duman Tespiti - Proje Ayarları
+# Tüm scriptler bu dosyayı okur. Bir şeyi değiştirmek istediğinde önce buraya bak.
+# =============================================================================
+
+seed: 42
+
+paths:
+  # Ham + işlenmiş veri. Colab'da yerel diskte durması çok daha hızlıdır;
+  # notebook FSD_DATA_DIR=/content/data ortam değişkeniyle bunu ezer.
+  data_dir: data
+  # Eğitim çıktıları, raporlar, ağırlıklar. Proje Drive'daysa kalıcıdır.
+  output_dir: outputs
+
+dataset:
+  # D-Fire veri setinin YOLO formatındaki Kaggle sürümü (~21k görsel, CC0)
+  kaggle_handle: sayedgamal99/smoke-fire-detection-yolo
+
+  # Hedef sınıf sırası -> id 0 = fire, id 1 = smoke.
+  # Kaynak veri setindeki sınıflar ada göre buna eşlenir (kaynakta sıra farklı olabilir).
+  classes: [fire, smoke]
+
+  # Alt küme boyutları (görsel sayısı). null -> o split'in tamamı kullanılır.
+  subset:
+    train: 4000
+    val: 800
+    test: 800
+
+  # Hiç yangın/duman içermeyen (arka plan) görsellerin oranı.
+  # Modelin "kırmızı ışık, gün batımı, sis" gibi şeylere alarm vermemesini öğretir.
+  background_ratio: 0.15
+
+  # Normalize genişlik/yükseklik bu değerden küçükse kutu atılır (640px'te ~2px).
+  min_box_size: 0.003
+
+  # Görseller uzun kenarı bu değere inecek şekilde (en-boy oranı korunarak) küçültülür.
+  # Model zaten 640x640 ile çalışıyor; büyük görselleri saklamak sadece yavaşlatır.
+  resize_max_side: 640
+  jpeg_quality: 95
+
+  # Çevrimdışı (offline) augmentation: eğitim setine "zor kamera koşulları"
+  # simüle edilmiş ek kopyalar üretir (bulanıklık, gürültü, gece, sıkıştırma...).
+  offline_aug:
+    enabled: true
+    fraction: 0.30          # train görsellerinin kaçta kaçına uygulanacak
+    copies_per_image: 1
+
+train:
+  imgsz: 640
+  epochs: 60
+  patience: 15              # val mAP bu kadar epoch iyileşmezse erken durdur
+  workers: 8
+  cache: false              # RAM yeterliyse "ram" yapmak eğitimi hızlandırır
+  amp: true
+
+  # Ultralytics'in eğitim sırasında her batch'te uyguladığı (online) augmentation.
+  augment:
+    hsv_h: 0.010            # renk tonu kayması. Ateşin rengi ayırt edici -> düşük tut
+    hsv_s: 0.6              # doygunluk
+    hsv_v: 0.4              # parlaklık
+    degrees: 5.0            # döndürme (kamera hafif eğik takılmış olabilir)
+    translate: 0.1
+    scale: 0.5
+    shear: 2.0
+    perspective: 0.0005     # kameranın tepeden/açılı bakması
+    flipud: 0.0             # dikey çevirme YOK: alev ve duman yukarı doğru yükselir
+    fliplr: 0.5
+    mosaic: 1.0
+    mixup: 0.1
+    close_mosaic: 10        # son 10 epoch mosaic kapatılır (gerçek görsellere uyum)
+
+# Karşılaştırılacak üç model. Hepsi COCO ön-eğitimli ağırlıklardan fine-tune edilir.
+models:
+  yolo11:
+    weights: yolo11s.pt
+    batch: 32
+    optimizer: auto
+  yolov8:
+    weights: yolov8s.pt
+    batch: 32
+    optimizer: auto
+  rtdetr:
+    weights: rtdetr-l.pt    # Ultralytics'teki en küçük RT-DETR
+    batch: 16               # transformer tabanlı, daha çok bellek ister (T4'te 8 yap)
+    optimizer: AdamW        # RT-DETR SGD ile kararsız eğitilir
+    lr0: 0.0001
+
+inference:
+  conf: 0.35                # bu güvenin altındaki tespitler gösterilmez
+  iou: 0.5
+  # Durum (alarm) kararı için eşikler (yüzde değil 0-1 arası)
+  alarm:
+    fire_conf: 0.50
+    smoke_conf: 0.50
