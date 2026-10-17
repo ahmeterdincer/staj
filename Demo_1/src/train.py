@@ -9,6 +9,10 @@ Kullanım:
     python -m src.train --model yolov8
     python -m src.train --model rtdetr
     python -m src.train --model rtdetr --resume        # Colab koptuysa kaldığı yerden
+    python -m src.train --model yolo11 --force         # biten eğitimi silip baştan eğit
+
+Model zaten eğitildiyse komut eğitimi atlar, yarım kaldıysa kendiliğinden devam
+eder. Böylece notebook'ta "Tümünü çalıştır" denince eğitimler tekrarlanmaz.
     python -m src.train --model yolo11 --epochs 3      # hızlı deneme
 """
 
@@ -16,8 +20,26 @@ from __future__ import annotations
 
 import argparse
 import shutil
+from pathlib import Path
 
 from src.utils import ARCHS, load_config, load_model, output_dir, processed_yaml
+
+
+def checkpoint_state(last: Path):
+    """last.pt'ye bakarak eğitimin durumunu döndürür: (durum, epoch, toplam_epoch) veya None.
+    Ultralytics eğitim bitince checkpoint'teki epoch'u -1 yapar; yarım kalanda son epoch yazar."""
+    if not last.exists():
+        return None
+    import torch
+
+    try:
+        ckpt = torch.load(last, map_location="cpu", weights_only=False)
+    except Exception as e:
+        print(f"[eğitim] UYARI: {last} okunamadı ({e}), yok sayılıyor.")
+        return None
+    epoch = ckpt.get("epoch", -1)
+    total = (ckpt.get("train_args") or {}).get("epochs", "?")
+    return ("finished" if epoch == -1 else "unfinished", epoch, total)
 
 
 def main() -> None:
@@ -30,17 +52,30 @@ def main() -> None:
     ap.add_argument("--batch", type=int, default=None, help="config'teki değeri ezer")
     ap.add_argument("--device", default=None, help="0, cpu ... (varsayılan: otomatik)")
     ap.add_argument("--resume", action="store_true")
+    ap.add_argument("--force", action="store_true", help="Biten bir eğitimi silip baştan eğit")
     args = ap.parse_args()
 
     cfg = load_config(args.config)
     tcfg, mcfg = cfg["train"], cfg["models"][args.model]
-    data = processed_yaml(cfg, args.data_dir)
-    if not data.exists():
-        raise SystemExit(f"{data} yok. Önce: python -m src.prepare_data")
-
     runs = output_dir(cfg, args.output_dir) / "runs"
     run_dir = runs / args.model
     last = run_dir / "weights" / "last.pt"
+
+    # "Tümünü çalıştır" denince biten eğitimler tekrar yapılmasın, yarım kalanlar devam etsin
+    state = checkpoint_state(last)
+    if state and not args.force:
+        status, epoch, total = state
+        if status == "finished":
+            print(f"[eğitim] {args.model} zaten eğitilmiş ({total} epoch'luk eğitim), atlanıyor: {run_dir / 'weights' / 'best.pt'}")
+            print("[eğitim] Baştan eğitmek için: --force")
+            return
+        if not args.resume:
+            print(f"[eğitim] {args.model} için yarım kalmış eğitim bulundu (epoch {epoch + 1}/{total}), otomatik devam ediliyor.")
+            args.resume = True
+
+    data = processed_yaml(cfg, args.data_dir)
+    if not data.exists():
+        raise SystemExit(f"{data} yok. Önce: python -m src.prepare_data")
 
     if args.resume:
         if not last.exists():
